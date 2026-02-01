@@ -1,5 +1,8 @@
 # 网易云音乐 API
 
+
+对index.html进行优化，在浏览器中可搜索，听歌，下载歌曲，歌词
+
 网易云音乐 Node.js API service
 
 <p>
