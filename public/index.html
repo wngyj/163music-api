@@ -1,136 +1,170 @@
 <!DOCTYPE html>
-<html lang="zh">
-
+<html>
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="X-UA-Compatible" content="ie=edge">
-  <title>网易云音乐 API</title>
-  <style>
-    html, body {
-      height: 100vh;
-      width: 100vw;
-      margin: 0;
-      padding: 0;
-      background: #f9f9f9;
-      font-family: Arial, sans-serif;
-      color: #333;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-    }
-
-    h1 {
-      font-size: 2.5em;
-      margin-bottom: 1em;
-      color: #42b983;
-    }
-
-    p {
-      font-size: 1.2em;
-      margin-bottom: 2em;
-      color: #666;
-    }
-
-    a {
-      color: #42b983;
-      text-decoration: none;
-      transition: color 0.3s ease;
-    }
-
-    a:hover {
-      color: #329d6e;
-    }
-
-    ul {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-      text-align: left;
-      max-width: 600px;
-      width: 100%;
-    }
-
-    li {
-      margin: 0.5em 0;
-      line-height: 1.5;
-      display: flex;
-      align-items: center;
-    }
-
-    .number {
-      margin-right: 10px;
-      color: #999;
-      font-weight: bold;
-    }
-
-    .container {
-      background: #fff;
-      padding: 2em;
-      border-radius: 8px;
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-      max-height: 80vh; /* 设置最大高度 */
-      overflow-y: auto; /* 启用垂直滚动条 */
-    }
-    
-    .version {
-      margin-top: 0.5em;
-      font-size: 1.0em;
-      color: #666;
-    }
-  </style>
+    <title>网易云音乐</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { font-family: sans-serif; background: #f8f9fa; margin: 0; padding: 15px; }
+        .search-box { position: sticky; top: 0; background: #f8f9fa; padding: 10px 0; display: flex; gap: 5px; z-index: 100; }
+        input { flex: 1; padding: 12px; border: 1px solid #ddd; border-radius: 8px; outline: none; }
+        button.search-btn { padding: 10px 20px; background: #ff3a3a; color: white; border: none; border-radius: 8px; font-weight: bold; }
+        
+        .song-item { background: white; margin-top: 10px; padding: 12px; border-radius: 10px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .song-info { overflow: hidden; }
+        .song-name { font-weight: bold; color: #333; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .song-artist { font-size: 0.85em; color: #666; margin-top: 4px; }
+        
+        .btn-group { display: flex; gap: 8px; width: 100%; }
+        .play-btn { background: #4caf50; color: white; border: none; padding: 10px; border-radius: 5px; flex: 1; font-size: 0.8em; }
+        .dl-btn { background: #2196f3; color: white; border: none; padding: 10px; border-radius: 5px; flex: 1; font-size: 0.8em; }
+        .lrc-btn { background: #9c27b0; color: white; border: none; padding: 10px; border-radius: 5px; flex: 1; font-size: 0.8em; }
+        
+        #player-container { position: fixed; bottom: 0; left: 0; right: 0; background: white; padding: 15px; border-top: 1px solid #eee; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); }
+        audio { width: 100%; height: 40px; }
+    </style>
 </head>
-
 <body>
-  <div class="container">
-    <h1>网易云音乐 API <span id="api-version"></span></h1>
-    <p>当你看到这个页面时，这个服务已经成功跑起来了~</p>
-    <p class="current-url"><span id="current-url"></span></p>
-    <a href="/docs">查看文档</a>
-    <h2>例子:</h2>
-    <ul id="example-list">
-      <li><a href="./search?keywords=海阔天空">搜索</a></li>
-      <li><a href="./comment/music?id=186016&limit=1">歌曲评论</a></li>
-      <li><a href="./dj/program?rid=336355127">电台节目</a></li>
-      <li><a href="./qrlogin.html">二维码登录</a></li>
-      <li><a href="./audio_match_demo/index.html">听歌识曲</a></li>
-      <li><a href="./cloud.html">云盘上传</a></li>
-      <li><a href="./eapi_decrypt.html">eapi 参数/返回值解析</a></li>
-      <li><a href="./api.html">API 调试界面</a></li>
-      <li><a href="./playlist_import.html">歌单导入工具</a></li>
-    </ul>
-  </div>
 
-  <script src="https://fastly.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-  <script>
-    document.addEventListener('DOMContentLoaded', function() {
-      const currentUrlElement = document.getElementById('current-url');
-      currentUrlElement.textContent = window.location.href;
+    <div class="search-box">
+        <input type="text" id="keyword" placeholder="输入歌名或歌手" onkeypress="if(event.keyCode==13) search()">
+        <button class="search-btn" onclick="search()">搜索</button>
+    </div>
 
-      const exampleList = document.getElementById('example-list');
-      const items = exampleList.getElementsByTagName('li');
+    <div id="result-list" style="padding-bottom: 120px;">
+        <p style="text-align:center; color:#999; margin-top:30px;">等待搜索 (Termux 127.0.0.1:3000)</p>
+    </div>
 
-      for (let i = 0; i < items.length; i++) {
-        const number = document.createElement('span');
-        number.className = 'number';
-        number.textContent = (i + 1) + '. ';
-        items[i].prepend(number);
-      }
-      
-      // 获取API版本号
-      axios({
-        url: '/inner/version',
-        method: 'post',
-        data: {},
-      }).then((res) => {
-        const body = res.data;
-        const version = body.data.version;
-        const apiVersionElement = document.getElementById('api-version');
-        apiVersionElement.textContent = ` v${version}`;
-      });
-    });
-  </script>
+    <div id="player-container">
+        <div id="now-playing" style="font-size: 0.85em; margin-bottom: 8px; color: #333; text-align: center; font-weight: bold;">就绪</div>
+        <audio id="mainPlayer" controls></audio>
+    </div>
+
+    <script>
+        const BASE_URL = "http://127.0.0.1:3000";
+
+        async function search() {
+            const kw = document.getElementById('keyword').value;
+            if(!kw) return;
+            const listDiv = document.getElementById('result-list');
+            listDiv.innerHTML = '<p style="text-align:center">🔍 搜索中...</p>';
+
+            try {
+                const res = await fetch(`${BASE_URL}/search?keywords=${encodeURIComponent(kw)}`);
+                const data = await res.json();
+                const songs = data.result?.songs || data.data?.songs || [];
+                
+                if (songs.length === 0) {
+                    listDiv.innerHTML = '<p style="text-align:center">❌ 未找到结果</p>';
+                    return;
+                }
+                
+                listDiv.innerHTML = ''; 
+                songs.forEach(song => {
+                    const artistsArr = song.ar || song.artists || [{name: '未知'}];
+                    const artists = artistsArr.map(a => a.name).join(' / ');
+                    const safeName = (song.name || "未知").replace(/'/g, "\\'");
+                    const safeArtist = artists.replace(/'/g, "\\'");
+
+                    const item = document.createElement('div');
+                    item.className = 'song-item';
+                    item.innerHTML = `
+                        <div class="song-info">
+                            <span class="song-name">${song.name}</span>
+                            <span class="song-artist">${artists}</span>
+                        </div>
+                        <div class="btn-group">
+                            <button class="play-btn" onclick="playSong(${song.id}, '${safeName}')">播放</button>
+                            <button class="dl-btn" onclick="downloadMusic(${song.id}, '${safeName}', '${safeArtist}')">下音频</button>
+                            <button class="lrc-btn" onclick="downloadLyric(${song.id}, '${safeName}', '${safeArtist}')">下对照歌词</button>
+                        </div>
+                    `;
+                    listDiv.appendChild(item);
+                });
+            } catch (e) {
+                listDiv.innerHTML = '<p style="text-align:center; color:red;">连接失败，请检查 Termux 服务</p>';
+            }
+        }
+
+        async function playSong(id, name) {
+            try {
+                const res = await fetch(`${BASE_URL}/song/url/v1?id=${id}&level=standard`);
+                const data = await res.json();
+                const url = data.data?.[0]?.url;
+                if(!url) return alert('无法播放');
+                const player = document.getElementById('mainPlayer');
+                document.getElementById('now-playing').innerText = '预览中: ' + name;
+                player.src = url;
+                player.play();
+            } catch (e) { alert('播放出错'); }
+        }
+
+        async function downloadMusic(id, name, artist) {
+            const fileName = `${name} - ${artist}`.replace(/[\/\\:*?"<>|]/g, '');
+            try {
+                const res = await fetch(`${BASE_URL}/song/url/v1?id=${id}&level=standard`);
+                const data = await res.json();
+                const url = data.data?.[0]?.url;
+                if(!url) return alert('获取地址失败');
+
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${fileName}.mp3`;
+                a.click();
+            } catch (e) { alert('下载音频失败'); }
+        }
+
+        // 核心：下载中英/中外双语对照歌词
+        async function downloadLyric(id, name, artist) {
+            const fileName = `${name} - ${artist}`.replace(/[\/\\:*?"<>|]/g, '');
+            try {
+                const res = await fetch(`${BASE_URL}/lyric?id=${id}`);
+                const data = await res.json();
+                
+                const originLrc = data.lrc?.lyric || '';
+                const transLrc = data.tlyric?.lyric || '';
+                
+                if (!originLrc) return alert('此歌曲暂无歌词');
+
+                // 如果有翻译，执行合并逻辑；否则直接使用原文
+                const finalLrc = transLrc ? mergeLyrics(originLrc, transLrc) : originLrc;
+
+                const blob = new Blob([finalLrc], { type: 'text/lrc' });
+                const lrcUrl = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = lrcUrl;
+                a.download = `${fileName}.lrc`;
+                a.click();
+                URL.revokeObjectURL(lrcUrl);
+            } catch (e) { alert('歌词处理出错'); }
+        }
+
+        // 歌词合并函数：通过 Map 按时间轴精准匹配
+        function mergeLyrics(origin, trans) {
+            const parseLrc = (text) => {
+                const map = new Map();
+                const lines = text.split('\n');
+                lines.forEach(line => {
+                    const match = line.match(/^\[(\d{2}:\d{2}\.\d{2,3})\](.*)/);
+                    if (match) map.set(match[1], match[2].trim());
+                });
+                return map;
+            };
+
+            const originMap = parseLrc(origin);
+            const transMap = parseLrc(trans);
+            
+            // 获取所有不重复的时间点并排序
+            const allTimeTags = Array.from(new Set([...originMap.keys(), ...transMap.keys()])).sort();
+            
+            return allTimeTags.map(tag => {
+                const oText = originMap.get(tag) || '';
+                const tText = transMap.get(tag) || '';
+                // 只有原文和译文都有内容时才用斜杠连接，否则展示有的那部分
+                const content = (oText && tText) ? `${oText} / ${tText}` : (oText || tText);
+                return `[${tag}]${content}`;
+            }).join('\n');
+        }
+    </script>
 </body>
-
 </html>
